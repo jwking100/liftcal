@@ -19,7 +19,7 @@ npm run dev
 1. Create a Supabase project.
 2. Apply the schema: `supabase db push` (or run `supabase/migrations/*.sql` directly in the SQL editor).
 3. Deploy the edge function: `supabase functions deploy extract-workout-from-image`.
-4. Set the `LOVABLE_API_KEY` secret for the edge function (used to call the AI gateway for photo scanning).
+4. Set the `ANTHROPIC_API_KEY` secret for the edge function: `supabase secrets set ANTHROPIC_API_KEY=sk-ant-...` (used by the photo scanner to call the Claude API directly).
 
 ## Guest mode
 

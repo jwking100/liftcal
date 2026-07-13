@@ -5,32 +5,37 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
+const ANTHROPIC_VERSION = "2023-06-01";
+
 const EXTRACT_TOOL = {
-  type: "function",
-  function: {
-    name: "extract_workout",
-    description: "Extract a single logged workout (exercise, weight in kg, reps) from an image.",
-    parameters: {
-      type: "object",
-      properties: {
-        exercise: {
-          type: "string",
-          description: "The name of the exercise, e.g. 'Bench Press'.",
-        },
-        weight: {
-          type: "number",
-          description: "The weight lifted, in kilograms. Convert from lb if needed.",
-        },
-        reps: {
-          type: "number",
-          description: "The number of reps performed.",
-        },
+  name: "extract_workout",
+  description: "Extract a single logged workout (exercise, weight in kg, reps) from an image.",
+  input_schema: {
+    type: "object",
+    properties: {
+      exercise: {
+        type: "string",
+        description: "The name of the exercise, e.g. 'Bench Press'.",
       },
-      required: ["exercise", "weight", "reps"],
-      additionalProperties: false,
+      weight: {
+        type: "number",
+        description: "The weight lifted, in kilograms. Convert from lb if needed.",
+      },
+      reps: {
+        type: "number",
+        description: "The number of reps performed.",
+      },
     },
+    required: ["exercise", "weight", "reps"],
   },
 };
+
+function parseDataUrl(dataUrl: string): { mediaType: string; base64: string } | null {
+  const match = /^data:([^;]+);base64,(.+)$/.exec(dataUrl);
+  if (!match) return null;
+  return { mediaType: match[1], base64: match[2] };
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -47,41 +52,55 @@ serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "AI gateway is not configured" }), {
+    const parsedImage = parseDataUrl(image);
+    if (!parsedImage) {
+      return new Response(JSON.stringify({ error: "Image must be a base64 data URL" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) {
+      return new Response(JSON.stringify({ error: "AI provider is not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": ANTHROPIC_VERSION,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: ANTHROPIC_MODEL,
+        max_tokens: 512,
+        system:
+          "You read photos of workout logs, whiteboards, gym notebooks, or fitness app screenshots and extract " +
+          "a single structured workout entry. Always call the extract_workout tool with your best reading of the " +
+          "exercise name, weight in kilograms (convert from pounds by multiplying by 0.4536 if the image uses lb), " +
+          "and reps. If multiple sets are shown, use the heaviest set.",
         messages: [
-          {
-            role: "system",
-            content:
-              "You read photos of workout logs, whiteboards, gym notebooks, or fitness app screenshots and extract " +
-              "a single structured workout entry. Always call the extract_workout tool with your best reading of the " +
-              "exercise name, weight in kilograms (convert from pounds by multiplying by 0.4536 if the image uses lb), " +
-              "and reps. If multiple sets are shown, use the heaviest set.",
-          },
           {
             role: "user",
             content: [
+              {
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: parsedImage.mediaType,
+                  data: parsedImage.base64,
+                },
+              },
               { type: "text", text: "Extract the workout data from this image." },
-              { type: "image_url", image_url: { url: image } },
             ],
           },
         ],
         tools: [EXTRACT_TOOL],
-        tool_choice: { type: "function", function: { name: "extract_workout" } },
+        tool_choice: { type: "tool", name: "extract_workout" },
       }),
     });
 
@@ -92,16 +111,9 @@ serve(async (req) => {
       });
     }
 
-    if (response.status === 402) {
-      return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }), {
-        status: 402,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      console.error("Anthropic API error:", response.status, errorText);
       return new Response(JSON.stringify({ error: "Failed to analyze image" }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -109,16 +121,16 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    const toolUse = data.content?.find((block) => block.type === "tool_use");
 
-    if (!toolCall?.function?.arguments) {
+    if (!toolUse?.input) {
       return new Response(JSON.stringify({ error: "Could not extract workout data from image" }), {
         status: 422,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const parsed = JSON.parse(toolCall.function.arguments);
+    const parsed = toolUse.input;
 
     return new Response(
       JSON.stringify({
