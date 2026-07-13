@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Lift Calc — dark theme, teal/cyan accents (default & only theme) */
+    --background: 222 47% 6%;
+    --foreground: 210 40% 96%;
+
+    --card: 222 40% 10%;
+    --card-foreground: 210 40% 96%;
+
+    --popover: 222 44% 8%;
+    --popover-foreground: 210 40% 96%;
+
+    --primary: 174 72% 45%;
+    --primary-foreground: 222 47% 6%;
+    --primary-glow: 189 94% 55%;
+
+    --secondary: 222 30% 16%;
+    --secondary-foreground: 210 40% 96%;
+
+    --muted: 222 30% 14%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 189 94% 55%;
+    --accent-foreground: 222 47% 6%;
+
+    --success: 142 71% 45%;
+    --success-foreground: 222 47% 6%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 40% 96%;
+
+    --border: 222 25% 20%;
+    --input: 222 25% 18%;
+    --ring: 174 72% 45%;
+
+    --chart-1: 174 72% 45%;
+    --chart-2: 189 94% 55%;
+    --chart-3: 262 83% 68%;
+    --chart-4: 38 92% 60%;
+    --chart-5: 340 82% 62%;
+
+    --sidebar-background: 222 44% 8%;
+    --sidebar-foreground: 210 40% 96%;
+    --sidebar-primary: 174 72% 45%;
+    --sidebar-primary-foreground: 222 47% 6%;
+    --sidebar-accent: 222 30% 16%;
+    --sidebar-accent-foreground: 210 40% 96%;
+    --sidebar-border: 222 25% 20%;
+    --sidebar-ring: 174 72% 45%;
+
+    --radius: 0.85rem;
+
+    --gradient-primary: linear-gradient(135deg, hsl(174 72% 45%), hsl(189 94% 55%));
+    --gradient-glow: radial-gradient(circle at 50% 0%, hsl(174 72% 45% / 0.25), transparent 60%);
+    --gradient-surface: linear-gradient(180deg, hsl(222 40% 11% / 0.8), hsl(222 44% 8% / 0.8));
+
+    --shadow-glow: 0 0 40px hsl(174 72% 45% / 0.25);
+    --shadow-card: 0 8px 30px hsl(222 47% 2% / 0.5);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    background-image: var(--gradient-glow);
+    background-attachment: fixed;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  #root {
+    min-height: 100svh;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply rounded-lg border border-border/60 bg-card/60 backdrop-blur-xl;
+    box-shadow: var(--shadow-card);
+  }
+
+  .gradient-text {
+    background-image: var(--gradient-primary);
+    @apply bg-clip-text text-transparent;
+  }
+}
