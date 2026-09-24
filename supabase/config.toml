@@ -1,0 +1,4 @@
+project_id = "liftcal"
+
+[functions.extract-workout-from-image]
+verify_jwt = true
